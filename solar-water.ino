@@ -2,6 +2,7 @@
 /* 依赖 PubSubClient 2.4.0 */
 #include <PubSubClient.h>
 #include <ESP8266HTTPClient.h>
+#include <ArduinoJson.h>
 
 //#define WIFI_SSID         "magic"
 #define WIFI_SSID         "ChinaNet-RV8U7W"
@@ -31,6 +32,7 @@ void connectWifi(){
 
     Serial.print("Connected to AP, IP address: ");
     Serial.println(WiFi.localIP());
+    connectMqtt();
 }
 
 //连接mqtt
@@ -52,31 +54,35 @@ void connectMqtt(){
     }
 }
 
+//上水结束时间
+unsigned long endTime = 0;
+//当前状态
+bool isOn = false;
+
 //收到消息后的回调函数
 void onReceiveMessage(char *topic, byte *payload, unsigned int length){
     payload[length] = '\0';
-    Serial.println((char *)payload);
-}
-
-bool getStatus(){
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(1000);                       // wait for a second
-  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  delay(1000);    
+    int timeLength = String((char *)payload).toInt(); 
+    
+    pinMode(D1, OUTPUT);
+    digitalWrite(D1, HIGH);
+    endTime = millis() + timeLength;
+    isOn = true;
 }
 
 void setup(){
     Serial.begin(115200);
     delay(200);
-   // connectWifi();
-   // connectMqtt();
-    getStatus();
+    connectWifi();
 }
 
 void loop(){
-    //connectWifi();
-   // connectMqtt();
-   // mqttClient.loop();  //保持客户端的连接
- //getStatus();
+  //如果当前时间，已经超过了应该断开的时间。并且上水阀还是接通的状态，那就断开
+  if(millis() > endTime && isOn){
+    digitalWrite(D1, LOW);
+    isOn = false;
+  }
+  connectWifi();
+  mqttClient.loop();  //保持客户端的连接
+  delay(500);
 }
