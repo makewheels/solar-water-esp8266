@@ -1,37 +1,82 @@
-/*
-  Blink
+#include <ESP8266WiFi.h>
+/* 依赖 PubSubClient 2.4.0 */
+#include <PubSubClient.h>
+#include <ESP8266HTTPClient.h>
 
-  Turns an LED on for one second, then off for one second, repeatedly.
+//#define WIFI_SSID         "magic"
+#define WIFI_SSID         "ChinaNet-RV8U7W"
+#define WIFI_PASSWD       "qiaobinhao123"
 
-  Most Arduinos have an on-board LED you can control. On the UNO, MEGA and ZERO
-  it is attached to digital pin 13, on MKR1000 on pin 6. LED_BUILTIN is set to
-  the correct LED pin independent of which board is used.
-  If you want to know what pin the on-board LED is connected to on your Arduino
-  model, check the Technical Specs of your board at:
-  https://www.arduino.cc/en/Main/Products
+#define MQTT_SERVER       "a1g0aXwTsx1.iot-as-mqtt.cn-shanghai.aliyuncs.com"
+#define MQTT_PORT         1883
+#define MQTT_USRNAME      "ZApjdvupCbBZlbJYFILD&a1g0aXwTsx1"
+#define CLIENT_ID         "a1g0aXwTsx1.ZApjdvupCbBZlbJYFILD|securemode=2,signmethod=hmacsha256,timestamp=1658143431835|"
+#define MQTT_PASSWD       "5ef55aa8f20a192c8fae1e55f9b0c4d0e127ad5310a4c138bdd9bbf0cd790ada"
 
-  modified 8 May 2014
-  by Scott Fitzgerald
-  modified 2 Sep 2016
-  by Arturo Guadalupi
-  modified 8 Sep 2016
-  by Colby Newman
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
 
-  This example code is in the public domain.
+//连接wifi
+void connectWifi(){
+    if (WiFi.status() == WL_CONNECTED){
+        return;
+    }
+    Serial.println("Start connect WiFi...");
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWD);
+    while (WiFi.status() != WL_CONNECTED){
+        delay(1500);
+        Serial.println("WiFi is Connecting");
+    }
 
-  https://www.arduino.cc/en/Tutorial/BuiltInExamples/Blink
-*/
-
-// the setup function runs once when you press reset or power the board
-void setup() {
-  // initialize digital pin LED_BUILTIN as an output.
-  pinMode(D1, OUTPUT);
+    Serial.print("Connected to AP, IP address: ");
+    Serial.println(WiFi.localIP());
 }
 
-// the loop function runs over and over again forever
-void loop() {
-  digitalWrite(D1, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(2000);                       // wait for a second
-  digitalWrite(D1, LOW);    // turn the LED off by making the voltage LOW
-  delay(3000);                       // wait for a second
+//连接mqtt
+void connectMqtt(){
+    if(mqttClient.connected()){
+        return;
+    }
+    mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+    mqttClient.setCallback(onReceiveMessage);
+    while (!mqttClient.connected()){
+        Serial.println("Connecting to MQTT Server ...");
+        if (mqttClient.connect(CLIENT_ID, MQTT_USRNAME, MQTT_PASSWD)){
+            Serial.println("MQTT Connected!");
+        }else{
+            Serial.print("MQTT Connect err: ");
+            Serial.println(mqttClient.state());
+            delay(3000);
+        }
+    }
+}
+
+//收到消息后的回调函数
+void onReceiveMessage(char *topic, byte *payload, unsigned int length){
+    payload[length] = '\0';
+    Serial.println((char *)payload);
+}
+
+bool getStatus(){
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(1000);                       // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  delay(1000);    
+}
+
+void setup(){
+    Serial.begin(115200);
+    delay(200);
+   // connectWifi();
+   // connectMqtt();
+    getStatus();
+}
+
+void loop(){
+    //connectWifi();
+   // connectMqtt();
+   // mqttClient.loop();  //保持客户端的连接
+ //getStatus();
 }
