@@ -22,6 +22,7 @@ void connectWifi(){
     if (WiFi.status() == WL_CONNECTED){
         return;
     }
+    digitalWrite(D4, HIGH);
     Serial.println("Start connect WiFi...");
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWD);
@@ -46,6 +47,7 @@ void connectMqtt(){
         Serial.println("Connecting to MQTT Server ...");
         if (mqttClient.connect(CLIENT_ID, MQTT_USRNAME, MQTT_PASSWD)){
             Serial.println("MQTT Connected!");
+            digitalWrite(D4, LOW);
         }else{
             Serial.print("MQTT Connect err: ");
             Serial.println(mqttClient.state());
@@ -63,26 +65,33 @@ bool isOn = false;
 void onReceiveMessage(char *topic, byte *payload, unsigned int length){
     payload[length] = '\0';
     int timeLength = String((char *)payload).toInt(); 
-    
-    pinMode(D1, OUTPUT);
-    digitalWrite(D1, HIGH);
+    Serial.print("onReceiveMessage: ");
+    Serial.println((char *)payload);
+    digitalWrite(D2, HIGH);
     endTime = millis() + timeLength;
     isOn = true;
 }
 
 void setup(){
+    pinMode(D2, OUTPUT);
+    pinMode(D4, OUTPUT);
     Serial.begin(115200);
     delay(200);
     connectWifi();
 }
 
+unsigned long lastCheckWifi;
 void loop(){
   //如果当前时间，已经超过了应该断开的时间。并且上水阀还是接通的状态，那就断开
   if(millis() > endTime && isOn){
-    digitalWrite(D1, LOW);
+    digitalWrite(D2, LOW);
     isOn = false;
   }
-  connectWifi();
+  //设置检查wifi时间间隔
+  if(millis() - lastCheckWifi > 3000){
+      connectWifi();
+      lastCheckWifi = millis();
+  }
   mqttClient.loop();  //保持客户端的连接
   delay(500);
 }
